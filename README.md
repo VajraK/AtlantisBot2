@@ -35,101 +35,111 @@ An automated investment opportunity finder that scans Google for PDF documents c
 
 ## Installation
 
-1. **Clone the repository**:
+1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/yourusername/atlantis-bot-2.git
    cd atlantis-bot-2
-   Install Python dependencies:
    ```
 
-bash
-pip install -r requirements.txt
-Install Node.js dependencies:
+2. **Install Python dependencies:**
 
-bash
-npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth puppeteer-extra-plugin-recaptcha js-yaml
-Set up configuration:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-Copy config_example.yaml to config.yaml
+3. **Install Node.js dependencies:**
 
-Fill in all required API keys and settings
+   ```bash
+   npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth puppeteer-extra-plugin-recaptcha js-yaml
+   ```
 
-Configuration
-Example config.yaml:
+4. **Set up configuration:**
+   - Copy `config_example.yaml` to `config.yaml`
+   - Fill in all required API keys and settings
 
-yaml
+## Configuration
+
+Example `config.yaml`:
+
+```yaml
 telegram_bot_token: "your_bot_token"
 telegram_chat_id: "your_chat_id"
+
 google:
-queries: - '("seeking funding" OR "raising capital" OR ...) filetype:pdf'
-pages_limit: 3
+  queries:
+    - '("seeking funding" OR "raising capital" OR ...) filetype:pdf'
+  pages_limit: 3
+
 openai:
-api_key: "your_openai_key"
+  api_key: "your_openai_key"
+
 twoCaptchaApiKey: "your_2captcha_key"
+
 schedule:
-hour: 6 # 6 AM
-minute: 0
+  hour: 6 # 6 AM
+  minute: 0
+
 prompt: |
-Analyze the following former-PDF for any private investment opportunities...
-Required services:
+  Analyze the following former-PDF for any private investment opportunities...
+```
 
-OpenAI API key
+### Required services:
 
-Telegram bot token and chat ID
+- OpenAI API key
+- Telegram bot token and chat ID
+- 2Captcha API key (for CAPTCHA solving)
 
-2Captcha API key (for CAPTCHA solving)
+## Usage
 
-Usage
-Manual Run
-bash
+### Manual Run
+
+```bash
 python main.py
-Scheduled Execution
-bash
+```
+
+### Scheduled Execution
+
+```bash
 python start.py
-The bot will run daily at the time specified in config.yaml.
+```
 
-Workflow
-Search Phase:
+The bot will run daily at the time specified in `config.yaml`.
 
-Executes Google searches with configured queries
+## Workflow
 
-Solves CAPTCHAs automatically
+1. **Search Phase:**
 
-Saves HTML results
+   - Executes Google searches with configured queries
+   - Solves CAPTCHAs automatically
+   - Saves HTML results
 
-Processing Phase:
+2. **Processing Phase:**
 
-Extracts search results from HTML
+   - Extracts search results from HTML
+   - Uses GPT to rate initial relevance (YES/NO)
+   - Downloads PDFs of promising candidates
 
-Uses GPT to rate initial relevance (YES/NO)
+3. **Analysis Phase:**
+   - Converts PDFs to text
+   - Uses GPT to analyze content for investment opportunities
+   - Sends formatted results to Telegram
 
-Downloads PDFs of promising candidates
+## Requirements
 
-Analysis Phase:
+- Python 3.9+
+- Node.js 16+
+- Supported platforms: Linux, macOS, Windows
 
-Converts PDFs to text
+## Troubleshooting
 
-Uses GPT to analyze content for investment opportunities
+- Check `main.log` for detailed operation logs. Common issues:
+  - CAPTCHA solving failures: Ensure your 2Captcha API key is valid and has balance
+  - API limits: Check your OpenAI quota if analysis fails
+  - PDF download issues: Some servers may block automated downloads
 
-Sends formatted results to Telegram
+## License
 
-Requirements
-Python 3.9+
-
-Node.js 16+
-
-Supported platforms: Linux, macOS, Windows
-
-Troubleshooting
-Check main.log for detailed operation logs. Common issues:
-
-CAPTCHA solving failures: Ensure your 2Captcha API key is valid and has balance
-
-API limits: Check your OpenAI quota if analysis fails
-
-PDF download issues: Some servers may block automated downloads
-
-License
 MIT License
 
 <3
