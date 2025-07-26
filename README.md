@@ -38,7 +38,7 @@ An automated investment opportunity finder that scans Google for PDF documents c
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/yourusername/atlantis-bot-2.git
+   git clone https://github.com/VajraK/AtlantisBot2
    cd atlantis-bot-2
    ```
 
