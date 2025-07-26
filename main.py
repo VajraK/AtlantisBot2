@@ -5,10 +5,13 @@ import json
 import logging
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
+from telegram_sender import TelegramSender
+from pathlib import Path
 from google_scraper import scrape_google_links
 from extract_google_results import extract_all_results
 from ai_api import rate_entries_with_gpt
 from pdf_work import download_pdfs_from_ready_candidates, convert_pdfs_to_text
+from ai_api_final import analyze_txt_file
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -27,10 +30,43 @@ if not logger.handlers:
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
 
-
 def load_config(path="config.yaml"):
     with open(path, "r") as f:
         return yaml.safe_load(f)
+
+async def analyze_all_txts(base_folder):
+    txt_folder = os.path.join(base_folder, "txt")
+    ready_json_path = os.path.join(base_folder, "ready_candidates.json")
+
+    # Load mapping from hash → entry
+    with open(ready_json_path, "r", encoding="utf-8") as f:
+        candidates = json.load(f)
+        hash_entry_map = {item["hash"]: item for item in candidates}
+
+    sender = TelegramSender()
+
+    for txt_file in Path(txt_folder).glob("*.txt"):
+        hash_name = txt_file.stem
+        logger.info(f"🔍 Analyzing: {hash_name}.txt")
+
+        entry = hash_entry_map.get(hash_name)
+        if not entry:
+            logger.warning(f"⚠️ No matching entry in ready_candidates.json for hash: {hash_name}")
+            continue
+
+        try:
+            result = await analyze_txt_file(str(txt_file))
+            if result:
+                entry["result"] = result  # ✅ Add result to the entry
+                await sender.send_filing_result(result, entry["url"])
+        except Exception as e:
+            logger.error(f"❌ Error processing {txt_file.name}: {e}")
+
+    # Save updated JSON with analysis results
+    with open(ready_json_path, "w", encoding="utf-8") as f:
+        json.dump(list(hash_entry_map.values()), f, indent=2, ensure_ascii=False)
+
+    logger.info(f"💾 Updated ready_candidates.json with analysis results")
 
 
 def get_latest_pages_folder(base_folder="pages"):
@@ -150,6 +186,9 @@ async def async_main():
 
     # Convert downloaded PDFs to TXT
     convert_pdfs_to_text(base_folder=latest_folder)
+
+    # Analyze txts
+    await analyze_all_txts(latest_folder)
 
 def main():
     asyncio.run(async_main())

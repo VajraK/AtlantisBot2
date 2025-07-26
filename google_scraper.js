@@ -32,7 +32,7 @@ function buildSearchUrl(query, start = 0) {
   return `https://www.google.com/search?q=${encodeURIComponent(query)}&hl=en-GB&tbs=qdr:d&start=${start}`;
 }
 
-async function scrapeGoogleResults(query) {
+async function scrapeGoogleResults(query, pagesLimitFromInput) {
   const timestamp = new Date().toISOString().split('.')[0].replace(/:/g, '-');
   const folderPath = `./pages/${timestamp}`;
   fs.mkdirSync(folderPath, { recursive: true });
@@ -57,13 +57,16 @@ async function scrapeGoogleResults(query) {
 
   const results = [];
   let currentPage = 0;
-  const maxPages = config.maxPages || 3;
+
+  // Use pagesLimitFromInput or fallback to config.maxPages or default 3
+  const maxPages = pagesLimitFromInput || config.maxPages || 3;
+
   let keepGoing = true;
 
   try {
     while (keepGoing) {
       if (currentPage >= maxPages) {
-        console.error(`🛑 Reached max page limit from config (${maxPages}), stopping.`);
+        console.error(`🛑 Reached max page limit from input/config (${maxPages}), stopping.`);
         break;
       }
 
@@ -180,8 +183,8 @@ async function main() {
   }
 
   try {
-    const { query } = JSON.parse(inputData);
-    const results = await scrapeGoogleResults(query);
+    const { query, pages_limit } = JSON.parse(inputData);
+    const results = await scrapeGoogleResults(query, pages_limit);
     console.log(JSON.stringify({ success: true, results }));
   } catch (err) {
     console.log(JSON.stringify({ success: false, error: err.message }));
