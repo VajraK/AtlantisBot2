@@ -39,7 +39,7 @@ An automated investment opportunity finder that scans Google for PDF documents c
 
    ```bash
    git clone https://github.com/VajraK/AtlantisBot2
-   cd atlantis-bot-2
+   cd AtlantisBot2
    ```
 
 2. **Install Python dependencies:**
