@@ -1,98 +1,135 @@
-Atlantis Bot 2
+# Atlantis Bot 2
 
-This project is a Google search scraper built using **Node.js (Puppeteer)** and controlled via a **Python** interface.  
-It supports stealth mode to bypass bot detection, solves Google reCAPTCHA challenges via 2Captcha, and saves HTML results for each page.
+![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
+![Node.js](https://img.shields.io/badge/node.js-16+-green.svg)
 
----
+An automated investment opportunity finder that scans Google for PDF documents containing potential private investment opportunities, analyzes them using AI, and delivers actionable results via Telegram.
 
 ## Features
 
-- Headless browser scraping with Puppeteer + stealth plugin
-- Automated reCAPTCHA solving with 2Captcha integration
-- Configurable maximum pages to scrape (`pages_limit`)
-- Saves raw HTML pages locally
-- Controlled asynchronously from Python (via subprocess and JSON communication)
-- CAPTCHA detection and retries
-- Cookie consent handling
+- **Automated Google Search**: Scrapes Google results for PDFs matching financial opportunity keywords
+- **AI-Powered Analysis**: Uses OpenAI's GPT models to:
+  - Pre-filter potentially relevant documents
+  - Analyze document content for investment opportunities
+- **Smart Processing**:
+  - Handles large documents with chunking and summarization
+  - Deduplicates results
+  - Converts PDFs to text for analysis
+- **Telegram Integration**: Sends formatted results directly to Telegram
+- **Scheduled Operation**: Runs daily at configured times
 
----
+## Components
 
-## Requirements
+| File                        | Description                                     |
+| --------------------------- | ----------------------------------------------- |
+| `main.py`                   | Main orchestration script                       |
+| `ai_api.py`                 | Initial document relevance rating with GPT      |
+| `ai_api_final.py`           | Detailed document analysis with GPT             |
+| `google_scraper.js`         | Node.js Google scraping with CAPTCHA solving    |
+| `google_scraper.py`         | Python wrapper for the Node.js scraper          |
+| `extract_google_results.py` | Extracts and processes search results from HTML |
+| `pdf_work.py`               | Handles PDF downloading and text conversion     |
+| `telegram_sender.py`        | Manages Telegram notifications                  |
+| `start.py`                  | Scheduled execution controller                  |
+| `config.yaml`               | Configuration file (see example below)          |
 
-### Python dependencies
+## Installation
 
-```bash
-pip install -r requirements.txt
-Node.js dependencies
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/yourusername/atlantis-bot-2.git
+   cd atlantis-bot-2
+   Install Python dependencies:
+   ```
+
 bash
-Copy
-Edit
-npm install puppeteer-extra puppeteer-extra-plugin-stealth puppeteer-extra-plugin-recaptcha readline js-yaml axios
+pip install -r requirements.txt
+Install Node.js dependencies:
+
+bash
+npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth puppeteer-extra-plugin-recaptcha js-yaml
+Set up configuration:
+
+Copy config_example.yaml to config.yaml
+
+Fill in all required API keys and settings
+
 Configuration
-Edit config.yaml to set values such as:
+Example config.yaml:
 
 yaml
-Copy
-Edit
-twoCaptchaApiKey: "YOUR_2CAPTCHA_API_KEY"
-maxPages: 3
-twoCaptchaApiKey — your 2Captcha API key for CAPTCHA solving
+telegram_bot_token: "your_bot_token"
+telegram_chat_id: "your_chat_id"
+google:
+queries: - '("seeking funding" OR "raising capital" OR ...) filetype:pdf'
+pages_limit: 3
+openai:
+api_key: "your_openai_key"
+twoCaptchaApiKey: "your_2captcha_key"
+schedule:
+hour: 6 # 6 AM
+minute: 0
+prompt: |
+Analyze the following former-PDF for any private investment opportunities...
+Required services:
 
-maxPages — default max number of Google result pages to scrape (overridden if pages_limit provided in input)
+OpenAI API key
+
+Telegram bot token and chat ID
+
+2Captcha API key (for CAPTCHA solving)
 
 Usage
-Python script example
-python
-Copy
-Edit
-import asyncio
-import json
-import subprocess
-import sys
-
-async def scrape(query, pages_limit=3):
-    input_data = json.dumps({"query": query, "pages_limit": pages_limit})
-    proc = await asyncio.create_subprocess_exec(
-        "node", "google_scraper.js",
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-    stdout, stderr = await proc.communicate(input_data.encode())
-    if proc.returncode != 0:
-        raise RuntimeError(f"Scraper failed: {stderr.decode().strip()}")
-    result = json.loads(stdout.decode())
-    if not result.get("success"):
-        raise RuntimeError("Scraper error: " + result.get("error", "Unknown error"))
-    return result["results"]
-
-# Example usage
-asyncio.run(scrape("openAI GPT", pages_limit=5))
-Running the scraper standalone
-You can also run the scraper directly via Node.js, providing JSON input through stdin:
-
+Manual Run
 bash
-Copy
-Edit
-echo '{"query": "openAI GPT", "pages_limit": 5}' | node google_scraper.js
-Output
-HTML files of Google search results are saved under ./pages/<timestamp>/
+python main.py
+Scheduled Execution
+bash
+python start.py
+The bot will run daily at the time specified in config.yaml.
 
-File names are google-results-page-1.html, google-results-page-2.html, etc.
+Workflow
+Search Phase:
 
-Screenshots saved in case of CAPTCHA failures or errors for debugging
+Executes Google searches with configured queries
 
-Notes
-Puppeteer runs headless by default but includes stealth plugins to minimize detection.
+Solves CAPTCHAs automatically
 
-2Captcha API key is required for solving Google reCAPTCHA challenges.
+Saves HTML results
 
-The Python script communicates with Node.js scraper via JSON over stdin/stdout.
+Processing Phase:
 
-Adjust pages_limit to control how many pages to scrape per query.
+Extracts search results from HTML
+
+Uses GPT to rate initial relevance (YES/NO)
+
+Downloads PDFs of promising candidates
+
+Analysis Phase:
+
+Converts PDFs to text
+
+Uses GPT to analyze content for investment opportunities
+
+Sends formatted results to Telegram
+
+Requirements
+Python 3.9+
+
+Node.js 16+
+
+Supported platforms: Linux, macOS, Windows
+
+Troubleshooting
+Check main.log for detailed operation logs. Common issues:
+
+CAPTCHA solving failures: Ensure your 2Captcha API key is valid and has balance
+
+API limits: Check your OpenAI quota if analysis fails
+
+PDF download issues: Some servers may block automated downloads
 
 License
 MIT License
 
 <3
-```
