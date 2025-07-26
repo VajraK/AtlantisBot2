@@ -19,7 +19,7 @@ puppeteer.use(
     solveScoreBased: true,
     solveInactiveChallenges: true,
     solveInViewportOnly: false,
-    solveTimeout: 120000
+    solveTimeout: 300000
   })
 );
 
@@ -28,12 +28,17 @@ async function delay(ms, reason = '') {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function buildSearchUrl(query, start = 0) {
+  return `https://www.google.com/search?q=${encodeURIComponent(query)}&hl=en-GB&tbs=qdr:d&start=${start}`;
+}
+
 async function scrapeGoogleResults(query) {
-  const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-  console.error(`🔍 Opening Google Search URL: ${url}`);
+  const timestamp = new Date().toISOString().split('.')[0].replace(/:/g, '-');
+  const folderPath = `./pages/${timestamp}`;
+  fs.mkdirSync(folderPath, { recursive: true });
 
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: true,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -51,70 +56,70 @@ async function scrapeGoogleResults(query) {
   page.setDefaultTimeout(60000);
 
   const results = [];
+  let currentPage = 0;
+  const maxPages = config.maxPages || 3;
+  let keepGoing = true;
 
   try {
-    console.error('🌐 Navigating to Google...');
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 180000 });
-    await delay(5000, 'Initial page load');
-
-    // CAPTCHA solving
-    let captchaSolved = false;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      console.error(`🔒 Attempting to solve CAPTCHAs (attempt ${attempt}/3)...`);
-      const { solved, error } = await page.solveRecaptchas().catch(err => ({ solved: [], error: err }));
-      
-      if (solved?.length > 0) {
-        captchaSolved = true;
-        console.error(`✅ Solved ${solved.length} CAPTCHA(s)`);
-        await delay(10000, 'Waiting after CAPTCHA solution');
+    while (keepGoing) {
+      if (currentPage >= maxPages) {
+        console.error(`🛑 Reached max page limit from config (${maxPages}), stopping.`);
         break;
       }
-      
-      if (attempt < 3) {
-        console.error(`⚠️ CAPTCHA solve failed, retrying... (${error?.message || 'unknown error'})`);
-        await delay(15000, 'Waiting before retry');
+
+      const url = buildSearchUrl(query, currentPage * 10);
+      console.error(`🌐 Navigating to page ${currentPage + 1}: ${url}`);
+
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 180000 });
+      await delay(5000, 'Initial page load');
+
+      // 🔁 CAPTCHA loop
+      let captchaLoopCount = 0;
+      const captchaMaxRetries = 5;
+
+      while (captchaLoopCount < captchaMaxRetries) {
+        const captchaVisible = await page.$('iframe[src*="recaptcha"]') !== null;
+
+        if (!captchaVisible) {
+          console.error('🔓 No CAPTCHA detected, continuing...');
+          break;
+        }
+
+        console.error(`🔒 CAPTCHA detected. Solving attempt ${captchaLoopCount + 1}/${captchaMaxRetries}...`);
+        const { solved, error } = await page.solveRecaptchas().catch(err => ({ solved: [], error: err }));
+
+        if (solved?.length > 0) {
+          console.error(`✅ Solved ${solved.length} CAPTCHA(s)`);
+          await delay(8000, 'Waiting after solving CAPTCHA');
+          // Optionally reload to re-trigger content
+          await page.reload({ waitUntil: 'networkidle2' });
+        } else {
+          console.error(`⚠️ CAPTCHA solve failed: ${error?.message || 'unknown error'}`);
+          await delay(10000, 'Waiting before retry');
+        }
+
+        captchaLoopCount++;
       }
-    }
 
-    if (!captchaSolved) {
-      console.error('❌ Failed to solve CAPTCHAs after 3 attempts');
-      await page.screenshot({ path: 'captcha-failure.png' });
-    }
-
-    // 🌐 Handle language + cookie popups
-    try {
-      console.error('🌍 Checking for language/cookie popups...');
-      
-      // Click globe (language selection)
-      const langButtonSelector = 'div.QS5gu.ud1jmf, div[aria-label*="language"], div[aria-label*="język"]';
-      const langButton = await page.$(langButtonSelector);
-      if (langButton) {
-        await langButton.click();
-        console.error('🌐 Clicked language selector');
-        await delay(3000);
-
-        // Click "English (United Kingdom)" if found - FIXED here
-        await page.evaluate(() => {
-          const langOptions = Array.from(document.querySelectorAll('li.Ge0Aub[role="menuitem"]'));
-          const enOption = langOptions.find(el => el.getAttribute('aria-label')?.includes('English (United Kingdom)'));
-          if (enOption) enOption.click();
-        });
-        await delay(5000, 'Language changed to English (UK)');
+      if (captchaLoopCount >= captchaMaxRetries) {
+        console.error('❌ Too many CAPTCHA loops, skipping this page.');
+        await page.screenshot({ path: path.join(folderPath, `captcha-failure-page-${currentPage + 1}.png`) });
+        currentPage++;
+        continue;
       }
 
-      // Accept cookies in any language
-      const acceptSelectors = [
-        'div.QS5gu.sy4vM', // Polish
-        'div[role="button"]:has-text("Accept all")',
-        'div[role="button"]:has-text("Zaakceptuj wszystko")',
-        'button:has-text("Accept all")',
-        'button:has-text("I agree")',
-        'div[role="button"]:has-text("Akceptuję")',
-        'button[aria-label="Accept all"]',
-      ];
+      // 🍪 Accept cookie banner if present
+      try {
+        const acceptSelectors = [
+          'div.QS5gu.sy4vM',
+          'div[role="button"]:has-text("Accept all")',
+          'button:has-text("Accept all")',
+          'button:has-text("I agree")',
+          'div[role="button"]:has-text("Akceptuję")',
+          'button[aria-label="Accept all"]',
+        ];
 
-      for (const selector of acceptSelectors) {
-        try {
+        for (const selector of acceptSelectors) {
           const btn = await page.$(selector);
           if (btn) {
             await btn.click();
@@ -122,69 +127,38 @@ async function scrapeGoogleResults(query) {
             await delay(3000, 'Waiting after accepting cookies');
             break;
           }
-        } catch { }
-      }
-    } catch (err) {
-      console.error('⚠️ Language or consent popup handling failed:', err.message);
-    }
-
-    // Time filter
-    try {
-        console.error('⏱️ Applying time filter...');
-        await page.waitForSelector('#hdtb-tls', { timeout: 10000 });
-        await page.click('#hdtb-tls');
-        await delay(2000, 'Waiting for tools menu');
-    
-        await page.evaluate(() => {
-        const items = Array.from(document.querySelectorAll('div[jsname="qRxief"]'));
-        const past24El = items.find(el => {
-            const a = el.querySelector('a[href*="tbs=qdr:d"]');
-            return a && /past\s*24\s*hours/i.test(a.textContent);
-        });
-        if (past24El) {
-            past24El.querySelector('a[href*="tbs=qdr:d"]').click();
         }
-        });
-        await delay(8000, 'Waiting for time filter to apply');
-    } catch (err) {
-        console.error('⚠️ Failed to apply time filter:', err.message);
-    }
-
-    // Final CAPTCHA check
-    try {
-      console.error('🔍 Final CAPTCHA check...');
-      const { solved } = await page.solveRecaptchas();
-      if (solved?.length > 0) {
-        console.error(`✅ Solved additional ${solved.length} CAPTCHA(s)`);
-        await delay(10000, 'Waiting after final CAPTCHA');
+      } catch (err) {
+        console.error('⚠️ Cookie consent handling failed:', err.message);
       }
-    } catch (err) {
-      console.error('⚠️ Final CAPTCHA check failed:', err.message);
-    }
-    
-    // 💾 Save full HTML
-    // Replace the file saving section with this code:
-    try {
-        const timestamp = new Date().toISOString().split('.')[0].replace(/:/g, '-');
-        const folderPath = `./pages/${timestamp}`;
-        fs.mkdirSync(folderPath, { recursive: true });
-    
-        // Create filesystem-safe filename
-        const safeFilename = `google-results-${Date.now()}.html`;
-        const filePath = `${folderPath}/${safeFilename}`;
-    
+
+      // 📝 Save HTML content
+      try {
+        const safeFilename = `google-results-page-${currentPage + 1}.html`;
+        const filePath = path.join(folderPath, safeFilename);
+
         const htmlContent = await page.content();
         fs.writeFileSync(filePath, htmlContent, 'utf8');
-    
+
         console.error(`✅ Saved HTML to ${filePath}`);
         results.push(filePath);
-    } catch (err) {
+      } catch (err) {
         console.error(`❌ Failed to save HTML: ${err.message}`);
+      }
+
+      // ⏭️ Go to next page if available
+      const nextButton = await page.$('a#pnnext');
+      if (nextButton) {
+        currentPage++;
+        await delay(2000, 'Waiting before next page');
+      } else {
+        console.error('ℹ️ No Next button found, ending pagination.');
+        keepGoing = false;
+      }
     }
-    
   } catch (err) {
     console.error(`❌ Critical error during scraping: ${err.message}`);
-    await page.screenshot({ path: 'error-screenshot.png' });
+    await page.screenshot({ path: path.join(folderPath, 'error-screenshot.png') });
   } finally {
     await browser.close();
   }
@@ -192,7 +166,7 @@ async function scrapeGoogleResults(query) {
   return results;
 }
 
-// Main logic
+// 🧠 CLI entrypoint for Python integration
 async function main() {
   const rl = readline.createInterface({
     input: process.stdin,

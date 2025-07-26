@@ -1,1 +1,4 @@
 pyyaml
+bs4
+openai
+async_timeout

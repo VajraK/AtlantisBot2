@@ -1,8 +1,8 @@
 import asyncio
 import json
 
-async def scrape_google_links(query: str):
-    input_data = {"query": query}
+async def scrape_google_links(query: str, pages_limit: int = 1):
+    input_data = {"query": query, "pages_limit": pages_limit}
     input_json = json.dumps(input_data)
 
     proc = await asyncio.create_subprocess_exec(
