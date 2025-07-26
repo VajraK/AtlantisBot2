@@ -5,4 +5,4 @@ async_timeout
 python-telegram-bot==20.7
 tiktoken
 aiohttp
-pdfminer
+dfminer.six
