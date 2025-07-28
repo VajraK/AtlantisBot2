@@ -2,7 +2,7 @@ telegram_bot_token: "x"
 telegram_chat_id: "-0"
 google:
   queries:
-    - '("seeking funding" OR "raising capital" OR "investment opportunity" OR "raising funds" OR "Series A" OR "Series B" OR "Series C" OR "Series D" OR "pitch deck" OR "investor deck" OR "investment memo" OR "confidential investor deck") filetype:pdf (site:*.com OR site:*.org OR site:*.ai OR site:*.io OR site:*.xyz OR site:*.network OR site:*.tech OR site:*.app OR site:*.finance OR site:*.capital OR site:*.fund OR site:*.ventures OR site:*.foundation OR site:*.global OR site:*.vc OR site:*.co OR site:*.co.uk)'
+    - '("confidential investor deck" OR "confidential pitch deck" OR "confidential information memorandum" OR "investment opportunity" OR "investment memorandum" OR "raising capital" OR "seeking investment" OR "Series A" OR "Series B" OR "Series C" OR "seed funding" OR "private placement" OR "convertible note" OR "equity raise" OR "debt raise" OR "fundraising deck" OR "investor memo" OR "executive summary") filetype:pdf (site:*.com OR site:*.org OR site:*.ai OR site:*.io OR site:*.xyz OR site:*.network OR site:*.tech OR site:*.app OR site:*.finance OR site:*.capital OR site:*.fund OR site:*.ventures OR site:*.foundation OR site:*.global OR site:*.vc OR site:*.co OR site:*.co.uk)'
   pages_limit: 7
 openai:
   api_key: "sk-x"

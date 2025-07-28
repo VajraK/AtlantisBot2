@@ -75,7 +75,7 @@ async def download_pdfs_from_ready_candidates(ready_candidates_path, base_pages_
     with open(ready_candidates_path, "r", encoding="utf-8") as f:
         candidates = json.load(f)
 
-    pdf_candidates = [c for c in candidates if c.get("url", "").lower().endswith(".pdf")]
+    pdf_candidates = [c for c in candidates if c.get("url", "").strip().lower().endswith(".pdf")]
     if not pdf_candidates:
         logger.info("ℹ️ No PDF URLs found in ready_candidates.json")
         return
